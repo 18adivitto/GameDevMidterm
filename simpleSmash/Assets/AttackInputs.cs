@@ -38,6 +38,7 @@ public class AttackInputs : MonoBehaviour
 
     BoxCollider2D[] colliders;
 
+    public float horInput;
     // Start is called before the first frame update
     void Start()
     {
@@ -61,6 +62,7 @@ public class AttackInputs : MonoBehaviour
 
     void Update()
     {
+        horInput = player.GetAxisRaw("Horizontal");
         stateDetection();
     }
 

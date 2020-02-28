@@ -5,8 +5,8 @@ using Rewired;
 
 public class PlayerMover : MonoBehaviour
 {
-    float jumpHeight = 20;
-    float speed = 8;
+    float jumpHeight = 17;
+    float speed = 4;
     float speedstandard = 10;
 
     int jumpNum = 2;
@@ -28,6 +28,12 @@ public class PlayerMover : MonoBehaviour
 
     public bool HIT;
 
+    bool bumpAway;
+
+    public bool onRight;
+
+    float speedmod;
+    float groundspeed;
     // Start is called before the first frame update
     void Start()
     {
@@ -56,16 +62,16 @@ public class PlayerMover : MonoBehaviour
     {
         if (playerID == 0)
         {
-            layerMask = 1 << 8;
+            layerMask = (1 << 10) | (1 << 12); //bitshift means exclude all except for 8
             layerMaskEXCLD = 1 << 9;
         }
         else if (playerID == 1)
         {
-            layerMask = 1 << 9;
-            layerMaskEXCLD = 1 << 8;
+            layerMask = (1 << 11)|(1 << 12);//used for checking the player movement collisions
+            layerMaskEXCLD = 1 << 8;//used for hit detection
         }
 
-        layerMask = ~layerMask;
+        //layerMask = ~layerMask;//eveything but 8
     }
 
     // Update is called once per frame
@@ -75,10 +81,12 @@ public class PlayerMover : MonoBehaviour
         GroundCheck();
         if (otherGuy.position.x < transform.position.x)
         {
+            onRight = true;
             transform.rotation = Quaternion.Euler(0, 180, 0);
         }
         else
         {
+            onRight = false;
             transform.rotation = Quaternion.Euler(0, 0, 0);
         }
         //if (moveDirection.x > 0)
@@ -98,27 +106,33 @@ public class PlayerMover : MonoBehaviour
 
     void Movement()
     {
+
         moveDirection = new Vector3(moveDirection.x, moveDirection.y, 0);
-        if (!attackData.crouching && grounded && !attackData.punching && !HIT)
+        if (!attackData.crouching  &&grounded&& !attackData.punching && !HIT)
         {
             moveDirection.x = player.GetAxisRaw("Horizontal") * Time.deltaTime * speed;
+            groundspeed = player.GetAxisRaw("Horizontal")*Time.deltaTime*speed;
         }
         else if (attackData.crouching || attackData.punching)
         {
             moveDirection.x = 0;
         }
-        else if (HIT)
-        {
-            if (transform.rotation.eulerAngles.y == 0)
-            {
-                moveDirection.x = -2f * Time.deltaTime * speed;
-            }
-            else
-            {
-                moveDirection.x = 2f * Time.deltaTime * speed;
-            }
-        }
+
         moveDirection.y += grav * Time.deltaTime;
+
+        if (HIT)
+        {
+            moveDirection.y = Time.deltaTime * 4f;
+
+                if (transform.rotation.eulerAngles.y == 0)
+                {
+                    moveDirection.x = -3f * Time.deltaTime * speed;
+                }
+                else
+                {
+                    moveDirection.x = 3f * Time.deltaTime * speed;
+                }
+        }
 
         if (Physics2D.OverlapCapsule(transform.position + new Vector3(0, moveDirection.y, 0), new Vector2(transform.localScale.x, transform.localScale.y), CapsuleDirection2D.Vertical, 0, layerMask))//yColl
         {
@@ -131,7 +145,7 @@ public class PlayerMover : MonoBehaviour
             {
                 moveDirection.y = -.1f;
             }
-            if (moveDirection.y >= 0 && player.GetButton("Jump") &&
+            if (moveDirection.y >= 0 && player.GetButton("Jump")&& transform.position.y<1 &&
                 !Physics2D.OverlapCapsule(transform.position + new Vector3(0, moveDirection.y, 0), new Vector2(transform.localScale.x, transform.localScale.y), CapsuleDirection2D.Vertical, 0, layerMask))
             {
                 moveDirection.y = jumpHeight * Time.deltaTime;
@@ -139,10 +153,55 @@ public class PlayerMover : MonoBehaviour
         }
 
         //x wall
+        if (!grounded && moveDirection.y == 0)
+        {
+            if (otherGuy.position.x < transform.position.x)
+            {
+                moveDirection.x = Time.deltaTime * 3;
+                if (otherGuy.position.x > -4.23f)
+                {
+                    otherGuy.position += new Vector3(-Time.deltaTime * 10, 0);
+                }
+            }
+            else
+            {
+                moveDirection.x = -Time.deltaTime * 3;
+                if (otherGuy.position.x < 4.23f)
+                {
+                    otherGuy.position += new Vector3(Time.deltaTime * 10, 0);
+                }
+            }
+        }
+        else if (grounded && moveDirection.y==0 && transform.position.y > 1)
+        {
+            if (otherGuy.position.x < transform.position.x)
+            {
+                moveDirection.x = Time.deltaTime * 3;
+            }
+            else
+            {
+                moveDirection.x = -Time.deltaTime * 3;
+            }
+        }
+
+        if (!grounded)
+        {
+            speedmod = 1.5f;
+        }
+        else
+        {
+            speedmod = 1f;
+        }
+
+        if (!HIT && !grounded)
+        {
+            moveDirection.x = groundspeed * speedmod;
+        }
 
         if (Physics2D.OverlapCapsule(transform.position + new Vector3(moveDirection.x, 0, 0), new Vector2(transform.localScale.x, transform.localScale.y), CapsuleDirection2D.Vertical, 0, layerMask))//XColl
         {
-            if (!Physics2D.OverlapCapsule(transform.position + new Vector3(moveDirection.x, .2f, 0), new Vector2(transform.localScale.x, transform.localScale.y), CapsuleDirection2D.Vertical, 0, layerMask))
+
+            if (!Physics2D.OverlapCapsule(transform.position + new Vector3(moveDirection.x, .1f, 0), new Vector2(transform.localScale.x, transform.localScale.y), CapsuleDirection2D.Vertical, 0, layerMask))
             {
                 moveDirection.x -= Time.deltaTime * 2;
             }
@@ -150,24 +209,36 @@ public class PlayerMover : MonoBehaviour
             {
                 if (!Physics2D.OverlapCapsule(transform.position + new Vector3(moveDirection.x / speed, 0, 0), new Vector2(transform.localScale.x, transform.localScale.y), CapsuleDirection2D.Vertical, 0, layerMask))
                 {
-                    moveDirection.x = moveDirection.x * Time.deltaTime;
+                    //moveDirection.x = moveDirection.x * Time.deltaTime;
+                    moveDirection.x = 0;
                 }
                 else
                 {
                     moveDirection.x = 0;
                 }
             }
-            if (attackData.jumping)
-            {
-                moveDirection.x *= -1;
-            }
+        }
+        if (Mathf.Abs(transform.position.x - otherGuy.position.x)<.7f && grounded)
+        {
+                if (!onRight)
+                {                    
+                    if (player.GetAxisRaw("Horizontal") > 0 && otherGuy.position.x< 4.23f)
+                    {
+                        otherGuy.transform.position += new Vector3(player.GetAxisRaw("Horizontal") * Time.deltaTime * speed, 0);
+                    }
+                    //Debug.Log("pushing");
+                }
+                else
+                {
+                    if (player.GetAxisRaw("Horizontal") < 0&& otherGuy.position.x > -4.23f)
+                    {
+                        otherGuy.transform.position += new Vector3(player.GetAxisRaw("Horizontal") * Time.deltaTime * speed, 0);
+                    }
+                    //Debug.Log("pushing");
+                }
+            
         }
 
-        if (HIT)
-        {
-            moveDirection.y = Time.deltaTime * 2.5f;
-        }
-        //Debug.Log(moveDirection.x);
         moveDirection.y = Mathf.Clamp(moveDirection.y,-.5f, .33f);
         moveDirection.x = Mathf.Clamp(moveDirection.x,-.15f,.15f);
         transform.position += moveDirection;

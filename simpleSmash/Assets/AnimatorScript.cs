@@ -52,7 +52,7 @@ public class AnimatorScript : MonoBehaviour
             idleNum = 0;
         }
 
-        if (inputData.walking)
+        if (Mathf.Abs(inputData.horInput)>0)//inputData.walking)
         {
             walkNum++;
             if (walkNum > walkFrames.Length-1)
@@ -91,7 +91,7 @@ public class AnimatorScript : MonoBehaviour
             if (punchNum > 1 && punchNum < 4)
             {
                 inputData.hitActive = true;
-                inputData.hitBox = new HitBox(.6f, new Vector3(0f, .45f, 0f), new Vector3(1.2f, .2f, .01f));
+                inputData.hitBox = new HitBox(.6f, new Vector3(0f, .45f, 0f), new Vector3(.8f, .2f, .01f));
             }
             else
             {
